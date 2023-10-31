@@ -1,0 +1,49 @@
+---
+title: "Rugby Results"
+author: "Rishab Tirupathi"
+date: "2023-10-31"
+output: pdf_document
+---
+```{r setup, include=FALSE, warning=FALSE}
+library(dplyr)
+library(astsa)
+library(tseries)
+knitr::opts_chunk$set(echo = TRUE)
+data = read.csv('results.csv')
+```
+
+## Create a table where we see the teams with the total points at home, away, the difference, and the average difference in points. 
+
+
+```{r}
+df = data |>
+  filter(neutral == "False" & world_cup == 'False') |>
+  arrange(date) |>
+  group_by(home_team) |> 
+  add_count(home_team)|>
+  mutate(total_home = sum(home_score),
+         total_away = sum(away_score),
+         diff = total_home-total_away, 
+         ave_diff = diff/n)|>
+  select(c('home_team', 'total_home', 'total_away', 'diff', 'ave_diff')) |>
+  distinct() |>
+  arrange(-ave_diff, -diff, -total_home, -total_away)
+
+rows = nrow(data |> filter(neutral == "False" & world_cup == 'False'))
+df
+print(sum(df$diff)/rows)
+```
+
+## Create a linear model to predict score difference
+
+```{r}
+mod_df = data |>
+  filter(neutral == "False" & world_cup == 'False' & date >= '2015-01-01') |>
+  arrange(date) |>
+  mutate(diff = home_score-away_score) |>
+  select(c('home_team', 'away_team', 'diff'))
+mod = lm(diff ~ home_team + away_team, data = mod_df)
+summary(mod)
+```
+
+We see that the intercept is positive, which indicates home team advantage. The model has a low R-squared so it could be improved. Each of the predictor variables is a binary variable - 1 if the team is playing 0 else. 
